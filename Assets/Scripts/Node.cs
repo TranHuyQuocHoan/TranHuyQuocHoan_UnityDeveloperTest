@@ -7,7 +7,7 @@ public class Node
     public float gCost = Mathf.Infinity;
     public float hCost;
     public float FCost => gCost + hCost;
-    public Node parent;
+    public Node nodeCameFrom;
 
     public Node(Vector2Int pos, bool walkable)
     {

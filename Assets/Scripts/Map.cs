@@ -1,16 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class Map : MonoBehaviour
 {
     [Header("Map Settings")]
-    public int width = 10;
-    public int height = 10;
-    public bool guaranteePath = false; // Option, if true, we always have a path from start to end
-    private int[,] grid;
+    [SerializeField] private int width = 10;
+    [SerializeField] private int height = 10;
+    [SerializeField] private bool guaranteePath = false; // Option, if true, we always have a path from start to end
 
     [Header("Prefabs")]
     [SerializeField] private NPC npcPrefab;
+    [SerializeField] private GameObject nodePrefab;
     [SerializeField] private GameObject goalPrefab;
     [SerializeField] private GameObject wallPrefab;
     [SerializeField] private GameObject pathPrefab;
@@ -19,50 +21,69 @@ public class Map : MonoBehaviour
     [Header("Camera")]
     [SerializeField] private Camera mainCamera;
 
+    private int[,] grid;
     private NPC npcInstance;
 
+    #region Unity Function
     private void Start()
     {
         GenerateMap();
-        SpawnGrid();
+        SpawnPrefabs();
         CenterMap();
-        FindPath();
     }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            var currentScene = SceneManager.GetActiveScene();
+
+            SceneManager.LoadScene(currentScene.buildIndex);
+        }
+    }
+
+    #endregion
+
+    #region Helpers
+    private Vector2Int[] GetFourDiections()
+    {
+        return new Vector2Int[] 
+        {   
+            new( 1, 0),
+            new(-1, 0),
+            new( 0, 1),
+            new( 0,-1),
+        };
+    }
+    #endregion
 
     #region Map Generation & Spawn
 
-    // This function will generate map with path that NPC can reach the goal
     private void GenerateMap()
     {
         print("generate new map");
 
         if (guaranteePath)
-        {
-            GenerateMapWithPath();
-        }
+            GenerateRandomDataWithPath();
         else
-        {
-            GenerateRandomMap();
-            EnsureStartAndGoalWalkable();
-        }
+            GenerateRandomData();
     }
 
-    private void GenerateMapWithPath()
+    // This function will generate map with path that NPC can reach the goal
+    private void GenerateRandomDataWithPath()
     {
         List<Vector2Int> testPath;
 
         do
         {
-            GenerateRandomMap();
-            EnsureStartAndGoalWalkable();
-
+            GenerateRandomData();
             testPath = CalculatePath(new Vector2Int(0, 0), new Vector2Int(width - 1, height - 1));
         }
         while (testPath == null);
     }
 
     // Generate random map
-    private void GenerateRandomMap()
+    private void GenerateRandomData()
     {
         grid = new int[width, height];
 
@@ -75,22 +96,16 @@ public class Map : MonoBehaviour
         }
     }
 
-    // Ensure start point (grid[0,0]) and end point (grid[grid[width - 1, height - 1])
-    // always walkable
-    private void EnsureStartAndGoalWalkable()
-    {
-        grid[0, 0] = 0;
-        grid[width - 1, height - 1] = 0;
-    }
-
     // Spawn grid
-    private void SpawnGrid()
+    private void SpawnPrefabs()
     {
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
                 Vector3 pos = new(x, y, 0);
+
+                Instantiate(nodePrefab, pos, Quaternion.identity);
 
                 // NPC
                 if (x == 0 && y == 0)
@@ -133,7 +148,8 @@ public class Map : MonoBehaviour
 
     #region A* Pathfinding
 
-    private void FindPath()
+    // Find path ( button listener )
+    public void DisplayPathAndMoveNpcAStar()
     {
         Vector2Int startNode = new(0, 0);
         Vector2Int goalNode = new(width - 1, height - 1);
@@ -142,12 +158,7 @@ public class Map : MonoBehaviour
 
         if (path != null)
         {
-            DisplayPath(path);
-
-            if (npcInstance != null)
-            {
-                npcInstance.MoveAlongPath(path);
-            }
+            StartCoroutine(DisplayPath(path));
         }
         else
         {
@@ -190,25 +201,28 @@ public class Map : MonoBehaviour
             openList.Remove(currentNode);
             closedHS.Add(currentNode);
 
+            // Check if we reach the goal, then we retrace the path
             if (currentNode == goalNode)
             {
-                return RetracePath(startNode, goalNode);
+                return RetracePathAStar(startNode, goalNode);
             }
 
             foreach (var neighbor in GetNeighbors(currentNode, nodes))
             {
+                // Check if neighbor is not walkable or already contains neighbor
                 if (!neighbor.walkable || closedHS.Contains(neighbor))
                 {
                     continue;
                 }
 
+                // Neighbor gCost = Current gCost + 1 step
                 float tentativeG = currentNode.gCost + 1;
 
                 if (tentativeG < neighbor.gCost)
                 {
                     neighbor.gCost = tentativeG;
                     neighbor.hCost = Heuristic(neighbor.pos, goal);
-                    neighbor.parent = currentNode;
+                    neighbor.nodeCameFrom = currentNode;
 
                     if (!openList.Contains(neighbor))
                     {
@@ -224,17 +238,9 @@ public class Map : MonoBehaviour
     // Find neighbours from current node
     private List<Node> GetNeighbors(Node currNode, Node[,] nodes)
     {
-        Vector2Int[] directions =
-        {
-            new( 1, 0), // Right
-            new(-1, 0), // Left
-            new( 0, 1), // Up
-            new( 0,-1), // Down
-        };
-
         List<Node> neighbors = new();
 
-        foreach (var dir in directions)
+        foreach (var dir in GetFourDiections())
         {
             Vector2Int nodePos = currNode.pos + dir;
 
@@ -252,7 +258,7 @@ public class Map : MonoBehaviour
         return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
     }
 
-    private List<Vector2Int> RetracePath(Node startNode, Node endNode)
+    private List<Vector2Int> RetracePathAStar(Node startNode, Node endNode)
     {
         List<Vector2Int> path = new();
         Node currentNode = endNode;
@@ -260,7 +266,7 @@ public class Map : MonoBehaviour
         while (currentNode != null) //(while cur != startNode)
         {
             path.Add(currentNode.pos);
-            currentNode = currentNode.parent;
+            currentNode = currentNode.nodeCameFrom;
         }
 
         path.Reverse();
@@ -270,18 +276,112 @@ public class Map : MonoBehaviour
 
     #endregion
 
+    #region BFS Pathfinding
+
+    public void DisplayPathAndMoveNpcBFS()
+    {
+        npcInstance.transform.position = Vector2.zero;
+
+        Vector2Int startNode = new(0, 0);
+        Vector2Int goalNode = new(width - 1, height - 1);
+
+        List<Vector2Int> path = FindPathBFS(startNode, goalNode);
+
+        if (path != null)
+        {
+            StartCoroutine(DisplayPath(path));
+        }
+        else
+        {
+            print($"<color=red> Path not found!!!! </color>");
+        }
+    }
+
+    public List<Vector2Int> FindPathBFS(Vector2Int start, Vector2Int goal)
+    {
+        bool[,] visited = new bool[width, height];
+
+        Dictionary<Vector2Int, Vector2Int> cameFrom = new();
+        Queue<Vector2Int> queue = new();
+
+        queue.Enqueue(start);
+        visited[start.x, start.y] = true;
+        cameFrom[start] = start;
+
+        // BFS loop
+        while (queue.Count > 0)
+        {
+            Vector2Int currentNode = queue.Dequeue();
+
+            // Check if we reach the goal, then we retrace the path
+            if (currentNode == goal)
+            {
+                return RetracePathBFS(cameFrom, start, goal);
+            }
+
+            // Loop through directions
+            foreach (var dir in GetFourDiections())
+            {
+                Vector2Int next = currentNode + dir;
+
+                // Check out of bounds
+                if (next.x < 0 || next.x >= width || next.y < 0 || next.y >= height)
+                {
+                    continue;
+                }
+                // Check if not walkable or already visited
+                if (grid[next.x, next.y] == 1 || visited[next.x, next.y])
+                {
+                    continue;
+                }
+
+                visited[next.x, next.y] = true;
+                cameFrom[next] = currentNode;
+                queue.Enqueue(next);
+            }
+        }
+
+        return null;
+    }
+
+    private List<Vector2Int> RetracePathBFS(Dictionary<Vector2Int, Vector2Int> cameFrom, Vector2Int start, Vector2Int goal)
+    {
+        var path = new List<Vector2Int>();
+        var currentNode = goal;
+
+        while (currentNode != start)
+        {
+            path.Add(currentNode);
+            currentNode = cameFrom[currentNode];
+        }
+
+        path.Add(start);
+        path.Reverse();
+
+        return path;
+    }
+
+    #endregion
+
     #region Display
 
-    private void DisplayPath(List<Vector2Int> path)
+    private IEnumerator DisplayPath(List<Vector2Int> path)
     {
-        if (path == null) return;
+        if (path == null)
+        {
+            yield break;
+        }
 
         foreach (var step in path)
         {
             Vector3 pos = new(step.x, step.y, 0f);
 
             Instantiate(foundPathPrefab, pos, Quaternion.identity);
+
+            yield return new WaitForSeconds(0.1f);
         }
+
+        npcInstance.MoveAlongPath(path);
     }
 
     #endregion
