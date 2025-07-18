@@ -29,34 +29,13 @@ public class Map : MonoBehaviour
         FindPath();
     }
 
-    private void FindPath()
-    {
-        Vector2Int startNode = new(0, 0);
-        Vector2Int goalNode = new(width - 1, height - 1);
-
-        List<Vector2Int> path = CalculatePath(startNode, goalNode);
-
-        if (path != null)
-        {
-            DisplayPath(path);
-
-            if (npcInstance != null)
-            {
-                npcInstance.MoveAlongPath(path);
-            }
-        }
-        else
-        {
-            print($"<color=red> Path not found!!!! </color>");
-        }
-    }
-
     #region Map Generation & Spawn
 
     // This function will generate map with path that NPC can reach the goal
-
     private void GenerateMap()
     {
+        print("generate new map");
+
         if (guaranteePath)
         {
             GenerateMapWithPath();
@@ -153,6 +132,28 @@ public class Map : MonoBehaviour
     #endregion
 
     #region A* Pathfinding
+
+    private void FindPath()
+    {
+        Vector2Int startNode = new(0, 0);
+        Vector2Int goalNode = new(width - 1, height - 1);
+
+        List<Vector2Int> path = CalculatePath(startNode, goalNode);
+
+        if (path != null)
+        {
+            DisplayPath(path);
+
+            if (npcInstance != null)
+            {
+                npcInstance.MoveAlongPath(path);
+            }
+        }
+        else
+        {
+            print($"<color=red> Path not found!!!! </color>");
+        }
+    }
 
     private List<Vector2Int> CalculatePath(Vector2Int start, Vector2Int goal)
     {
