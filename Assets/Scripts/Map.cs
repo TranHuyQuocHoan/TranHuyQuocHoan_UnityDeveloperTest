@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -8,8 +9,7 @@ public class Map : MonoBehaviour
     [Header("Map Settings")]
     [SerializeField] private int width = 10;
     [SerializeField] private int height = 10;
-    [SerializeField] private bool guaranteePath = false; // Option, if true, we always have a path from start to end
-
+   
     [Header("Prefabs")]
     [SerializeField] private NPC npcPrefab;
     [SerializeField] private Tile tilePrefab;
@@ -22,9 +22,13 @@ public class Map : MonoBehaviour
     private NPC npcInstance;
     private Tile[,] tiles;
 
+    private Vector2Int npcPos;
+    private Vector2Int goalPos;
+
     #region Unity Function
     private void Start()
     {
+        ChooseNpcPosAndGoal();
         GenerateMap();
         SpawnPrefabs();
         CenterMap();
@@ -56,35 +60,58 @@ public class Map : MonoBehaviour
     #endregion
 
     #region Map Generation & Spawn
-
     private void GenerateMap()
     {
         print("generate new map");
 
-        if (guaranteePath)
-            GenerateRandomDataWithPath();
-        else
-            GenerateRandomData();
-    }
-
-    // This function will generate map with path that NPC can reach the goal
-    private void GenerateRandomDataWithPath()
-    {
         List<Vector2Int> testPath;
 
         do
         {
             GenerateRandomData();
-            testPath = CalculatePath(new Vector2Int(0, 0), new Vector2Int(width - 1, height - 1));
+            
+            // Ensure npcPos and goalPos always walkable
+            grid[npcPos.x, npcPos.y] = 0;
+            grid[goalPos.x, goalPos.y] = 0;
+
+            testPath = CalculatePath(npcPos, goalPos);
         }
         while (testPath == null);
     }
 
+    private void ChooseNpcPosAndGoal()
+    {
+        List<Vector2Int> allCells = new();
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                allCells.Add(new Vector2Int(x, y));
+            }
+        }
+
+        // Shuffle 
+        for (int i = 0; i < allCells.Count; i++)
+        {
+            int j = Random.Range(i, allCells.Count);
+
+            Vector2Int temp = allCells[i];
+
+            allCells[i] = allCells[j];
+            allCells[j] = temp;
+        }
+
+        npcPos = allCells[0];
+        goalPos = allCells[1];
+    }
+
+
     // Generate random map
     private void GenerateRandomData()
     {
-        grid = new int[width, height];
         tiles = new Tile[width, height];
+        grid = new int[width, height];
 
         for (int x = 0; x < width; x++)
         {
@@ -109,7 +136,7 @@ public class Map : MonoBehaviour
                 Tile tile = Instantiate(tilePrefab, pos, Quaternion.identity);
 
                 // NPC
-                if (x == 0 && y == 0) // Just hardcode for demo
+                if (x == npcPos.x && y == npcPos.y)
                 {
                     npcInstance = Instantiate(npcPrefab, pos, Quaternion.identity);
 
@@ -117,7 +144,7 @@ public class Map : MonoBehaviour
                     tile.ChooseColor(ColorType.NPC);
                 }
                 // Goal
-                else if (x == width - 1 && y == height - 1) // Just hardcode for demo
+                else if (x == goalPos.x && y == goalPos.y)
                 {
                     tile.ChooseColor(ColorType.Goal);
                 }
@@ -157,10 +184,7 @@ public class Map : MonoBehaviour
     // Find path ( button listener )
     public void DisplayPathAndMoveNpcAStar()
     {
-        Vector2Int startNode = new(0, 0);
-        Vector2Int goalNode = new(width - 1, height - 1);
-
-        List<Vector2Int> path = CalculatePath(startNode, goalNode);
+        List<Vector2Int> path = CalculatePath(npcPos, goalPos);
 
         if (path != null)
         {
@@ -288,10 +312,7 @@ public class Map : MonoBehaviour
     {
         npcInstance.transform.position = Vector2.zero;
 
-        Vector2Int startNode = new(0, 0);
-        Vector2Int goalNode = new(width - 1, height - 1);
-
-        List<Vector2Int> path = FindPathBFS(startNode, goalNode);
+        List<Vector2Int> path = CalculatePath(npcPos, goalPos);
 
         if (path != null)
         {
