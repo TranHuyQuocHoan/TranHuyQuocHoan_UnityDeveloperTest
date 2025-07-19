@@ -28,10 +28,7 @@ public class Map : MonoBehaviour
     #region Unity Function
     private void Start()
     {
-        ChooseNpcPosAndGoal();
         GenerateMap();
-        SpawnPrefabs();
-        CenterMap();
     }
 
     private void Update()
@@ -64,19 +61,23 @@ public class Map : MonoBehaviour
     {
         print("generate new map");
 
+        ChooseNpcPosAndGoal();
+
         List<Vector2Int> testPath;
 
         do
         {
             GenerateRandomData();
-            
-            // Ensure npcPos and goalPos always walkable
+
             grid[npcPos.x, npcPos.y] = 0;
             grid[goalPos.x, goalPos.y] = 0;
 
             testPath = CalculatePath(npcPos, goalPos);
         }
         while (testPath == null);
+
+        SpawnPrefabs();
+        CenterMap();
     }
 
     private void ChooseNpcPosAndGoal()
@@ -310,9 +311,7 @@ public class Map : MonoBehaviour
 
     public void DisplayPathAndMoveNpcBFS()
     {
-        npcInstance.transform.position = Vector2.zero;
-
-        List<Vector2Int> path = CalculatePath(npcPos, goalPos);
+        List<Vector2Int> path = FindPathBFS(npcPos, goalPos);
 
         if (path != null)
         {
