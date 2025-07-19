@@ -662,10 +662,7 @@ MonoBehaviour:
   guaranteePath: 1
   npcPrefab: {fileID: 2166714002724418778, guid: 837dd2ff56051d046b9a5ff457b180b5, type: 3}
   nodePrefab: {fileID: 3182856555952431094, guid: b5434869ab4e4734ea994ce08caa3eaa, type: 3}
-  goalPrefab: {fileID: 2850343847433755834, guid: 0ff24045eac37584b8b974e08c24b5d8, type: 3}
-  wallPrefab: {fileID: 2850343847433755834, guid: 1f5b0bf49333fee4a86b7223478b9870, type: 3}
-  pathPrefab: {fileID: 9218922770346476918, guid: 3a44ba9078e75e64aa442237617085de, type: 3}
-  foundPathPrefab: {fileID: 9218922770346476918, guid: c52d711c2ea4d1c43b9ea714f1a31dbb, type: 3}
+  tilePrefab: {fileID: 573248162744388207, guid: ddcedae30ed663d48a3ac13e9bb18b37, type: 3}
   mainCamera: {fileID: 519420031}
 --- !u!4 &1479505050
 Transform:

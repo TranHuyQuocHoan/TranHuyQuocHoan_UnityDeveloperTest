@@ -12,17 +12,15 @@ public class Map : MonoBehaviour
 
     [Header("Prefabs")]
     [SerializeField] private NPC npcPrefab;
+    [SerializeField] private Tile tilePrefab;
     [SerializeField] private GameObject nodePrefab;
-    [SerializeField] private GameObject goalPrefab;
-    [SerializeField] private GameObject wallPrefab;
-    [SerializeField] private GameObject pathPrefab;
-    [SerializeField] private GameObject foundPathPrefab;
 
     [Header("Camera")]
     [SerializeField] private Camera mainCamera;
 
     private int[,] grid;
     private NPC npcInstance;
+    private Tile[,] tiles;
 
     #region Unity Function
     private void Start()
@@ -86,6 +84,7 @@ public class Map : MonoBehaviour
     private void GenerateRandomData()
     {
         grid = new int[width, height];
+        tiles = new Tile[width, height];
 
         for (int x = 0; x < width; x++)
         {
@@ -107,26 +106,33 @@ public class Map : MonoBehaviour
 
                 Instantiate(nodePrefab, pos, Quaternion.identity);
 
+                Tile tile = Instantiate(tilePrefab, pos, Quaternion.identity);
+
                 // NPC
-                if (x == 0 && y == 0)
+                if (x == 0 && y == 0) // Just hardcode for demo
                 {
                     npcInstance = Instantiate(npcPrefab, pos, Quaternion.identity);
+
+                    tile = npcInstance.GetComponent<Tile>();
+                    tile.ChooseColor(ColorType.NPC);
                 }
                 // Goal
-                else if (x == width - 1 && y == height - 1)
+                else if (x == width - 1 && y == height - 1) // Just hardcode for demo
                 {
-                    Instantiate(goalPrefab, pos, Quaternion.identity);
+                    tile.ChooseColor(ColorType.Goal);
                 }
                 // Wall
                 else if (grid[x, y] == 1)
                 {
-                    Instantiate(wallPrefab, pos, Quaternion.identity);
+                    tile.ChooseColor(ColorType.Wall);
                 }
                 // Normnal Path
                 else
                 {
-                    Instantiate(pathPrefab, pos, Quaternion.identity);
+                    tile.ChooseColor(ColorType.Path);
                 }
+
+                tiles[x, y] = tile;
             }
         }
     }
@@ -263,7 +269,7 @@ public class Map : MonoBehaviour
         List<Vector2Int> path = new();
         Node currentNode = endNode;
 
-        while (currentNode != null) //(while cur != startNode)
+        while (currentNode != startNode)
         {
             path.Add(currentNode.pos);
             currentNode = currentNode.nodeCameFrom;
@@ -355,7 +361,7 @@ public class Map : MonoBehaviour
             currentNode = cameFrom[currentNode];
         }
 
-        path.Add(start);
+        //path.Add(start);
         path.Reverse();
 
         return path;
@@ -374,9 +380,8 @@ public class Map : MonoBehaviour
 
         foreach (var step in path)
         {
-            Vector3 pos = new(step.x, step.y, 0f);
-
-            Instantiate(foundPathPrefab, pos, Quaternion.identity);
+            Tile tile = tiles[step.x, step.y];
+            tile.ChooseColor(ColorType.FoundPath);
 
             yield return new WaitForSeconds(0.1f);
         }
